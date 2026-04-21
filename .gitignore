@@ -12,6 +12,9 @@ Thumbs.db
 # Claude Code local files
 .claude/
 
+# Skill local config (contains user-specific tokens)
+config.json
+
 # Temporary files
 *.tmp
 /tmp/

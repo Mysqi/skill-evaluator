@@ -42,17 +42,33 @@ description: 评估 Skill 质量并打分，支持多模型交叉验证和多 Sk
 
 - **API Endpoint**：默认 `https://qianfan.baidubce.com/v2/chat/completions`，可通过脚本 `--endpoint` 参数覆盖
 
-**Token 检测与获取流程**：
+**Token 检测与获取流程**（按优先级）：
 
-1. **检测**：通过 Bash 工具执行 `echo $QIANFAN_BEARER_TOKEN` 检查环境变量是否已设置
-2. **已设置**：记录 Token 值，后续通过脚本 `--token` 参数传入，无需用户参与
-3. **未设置**：通过 AskUserQuestion 提示用户。定义两个显式选项：「已手动配置，再次检测」和「跳过」。自动追加的 Other 选项用于直接粘贴 Token（`bce-v3/...` 格式）。选择「再次检测」时重新执行 `echo $QIANFAN_BEARER_TOKEN`；选择「跳过」时降级到无需千帆的策略
-4. **传递方式**：获取到 Token 后，每次调用 `scripts/qianfan_chat.py` 时**必须通过 `--token` 参数传入**（Bash 工具每次调用都是独立 shell，`export` 不会跨调用持久化）
+1. **Skill 配置文件**：读取 Skill 目录下的 `config.json`，检查 `qianfan_token` 字段是否存在且以 `bce-v3/` 开头。若有效则直接使用，**跳过后续所有检测和询问**
+2. **环境变量**：通过 Bash 工具执行 `echo $QIANFAN_BEARER_TOKEN` 检查。若已设置，记录 Token 值并自动写入 `config.json` 持久化（下次直接从配置读取）
+3. **询问用户**：上述均未获取到时，通过 AskUserQuestion 提示用户。定义两个显式选项：「已手动配置，再次检测」和「跳过」。自动追加的 Other 选项用于直接粘贴 Token（`bce-v3/...` 格式）。选择「再次检测」时重新执行 `echo $QIANFAN_BEARER_TOKEN`；选择「跳过」时降级到无需千帆的策略
+4. **持久化**：用户通过 Other 粘贴 Token 后，自动写入 `config.json` 持久化，后续评估不再询问
+5. **传递方式**：获取到 Token 后，每次调用 `scripts/qianfan_chat.py` 时**必须通过 `--token` 参数传入**（Bash 工具每次调用都是独立 shell，`export` 不会跨调用持久化）
+
+**config.json 格式**（位于 Skill 目录下，已加入 .gitignore）：
+
+```json
+{
+  "qianfan_token": "bce-v3/..."
+}
+```
+
+**读写 config.json 的方式**：
 
 ```bash
-# Token 必须通过 --token 参数传入，不要用 export
-python3 scripts/qianfan_chat.py --models ernie-5.0,deepseek-v3.2 --prompt-file /tmp/eval.txt --token "bce-v3/..."
+# 读取 Token（Skill 目录路径根据实际安装位置确定）
+python3 -c "import json; c=json.load(open('<SKILL_DIR>/config.json')); print(c.get('qianfan_token',''))"
+
+# 写入 Token
+python3 -c "import json,os; p='<SKILL_DIR>/config.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c['qianfan_token']='<TOKEN>'; json.dump(c,open(p,'w'),indent=2)"
 ```
+
+> `<SKILL_DIR>` 为 SKILL.md 所在目录的实际路径。Agent 在加载 Skill 时已知该路径。
 
 ### 模型选择流程
 
@@ -62,7 +78,7 @@ python3 scripts/qianfan_chat.py --models ernie-5.0,deepseek-v3.2 --prompt-file /
 2. 否则，使用**一次** AskUserQuestion 同时询问两个问题（主模型和评估模型列表）。每个问题定义 2 个预设选项，自动追加的 Other 选项用于自定义输入：
    - **主模型（仲裁者）**：选项 1「当前 Agent」、选项 2「默认配置」→ Other 自定义输入
    - **评估模型列表**：选项 1「默认配置列表」、选项 2「Claude 系列模型」→ Other 自定义输入
-3. 模型确认后，若需要千帆 API 则**静默检测** Token（`echo $QIANFAN_BEARER_TOKEN`）。已设置则直接使用；未设置时才追加一轮 AskUserQuestion 让用户提供 Token 或跳过
+3. 模型确认后，若需要千帆 API 则按「千帆 API 配置」章节的 Token 检测流程获取 Token（配置文件 → 环境变量 → 询问用户）。配置文件或环境变量中已有有效 Token 时**无需任何交互**
 
 整个流程**最多 2 轮交互**（模型确认 + Token），多数情况下用户点一次"使用默认"即可开始。
 
@@ -340,7 +356,7 @@ python3 scripts/qianfan_chat.py \
 - 策略 A 下，若只有 2 个模型，则只有 1 对交叉互审；仲裁者为两者中能力更强的模型（opus > sonnet > haiku），如无法判断则使用列表中第一个模型
 - 策略 B（API 多模型）下，独立评估阶段使用批量并行模式（`--models`），所有模型同时调用；交叉互审阶段每个模型 prompt 不同，可通过 `--prompt-files` 参数一次并行调用，或使用多个并行 Bash 调用；超时默认 120 秒
 - 策略 B 下，若某个模型 API 调用失败，重试一次；仍失败则跳过该模型，在报告中注明
-- 策略 B 下，千帆 Token 通过 `echo $QIANFAN_BEARER_TOKEN` 检测，未设置时通过交互式选项询问用户（可选择 Other 粘贴 Token 或跳过降级到策略 C）；获取后通过 `--token` 参数传入脚本（不要用 `export`，Bash 工具跨调用不持久化）
+- 策略 B 下，千帆 Token 按优先级检测：Skill 配置文件 `config.json` → 环境变量 `QIANFAN_BEARER_TOKEN` → 询问用户。配置文件或环境变量中有有效 Token 时无需用户交互；用户提供后自动写入 `config.json` 持久化。获取后通过 `--token` 参数传入脚本（不要用 `export`，Bash 工具跨调用不持久化）
 - 策略 C（串行多视角）下，3 个视角的评分必须体现出明确差异；若所有视角评分完全一致，说明视角分化不足，应重新审视各视角的评分是否真正独立思考
 - 策略自动切换：确认模型列表后，根据模型分类前置判断策略（见「配置 > 执行策略 > 策略选择逻辑」）；纯原生模型走 A，纯非原生模型走 B，混合模型走 A+B；降级链路为 A → B → C
 - 策略 A+B（混合模式）下，两组调用应尽量并行发起；非原生模型的交叉互审可使用 `--prompt-files` 参数并行调用；某一通道的部分模型失败不影响另一通道，按各自策略的失败处理规则执行
