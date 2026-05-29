@@ -9,11 +9,8 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Claude Code local files
+# Local agent files
 .claude/
-
-# Skill local config (contains user-specific tokens)
-config.json
 
 # Temporary files
 *.tmp

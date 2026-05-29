@@ -1,184 +1,175 @@
-# 输出格式模板
+# Report Format Templates
 
-本文件定义三种评估报告的输出格式。执行时读取对应模板，填充实际评估结果后输出。
+Use the template matching the selected evaluation mode. Keep reports evidence-based and concise.
 
-## 单模型报告
+## Single-Model Report
 
-```
-## Skill 评估报告
+```markdown
+## Skill Evaluation Report
 
-### [Skill 名称]
+### [Skill Name]
 
-**综合得分：X.X / 10（等级 X）**
+**Weighted Score: X.X / 10 (Grade X)**
 
-| 维度 | 分数 | 说明 |
-|------|------|------|
-| D1. 元数据质量 | X/10 | ... |
-| D2. 执行引导清晰度 | X/10 | ... |
-| D3. 领域知识密度 | X/10 | ... |
-| D4. 工作流完整性 | X/10 | ... |
-| D5. 输入输出清晰度 | X/10 | ... |
-| D6. 资源利用 | X/10 | ... |
-| D7. 写作质量 | X/10 | ... |
-| D8. 范围与聚焦 | X/10 | ... |
+| Dimension | Score | Evidence |
+|-----------|-------|----------|
+| D1. Metadata Quality | X/10 | ... |
+| D2. Execution Guidance Clarity | X/10 | ... |
+| D3. Domain Knowledge Density | X/10 | ... |
+| D4. Workflow Completeness | X/10 | ... |
+| D5. Input/Output Clarity | X/10 | ... |
+| D6. Resource Utilization | X/10 | ... |
+| D7. Writing Quality | X/10 | ... |
+| D8. Scope & Focus | X/10 | ... |
 
-#### 问题与建议
-1. **[维度名]**：[问题] → [建议]
-2. ...
-
----
-（对每个 Skill 重复以上内容）
-
-### 对比分析（多个 Skill 时）
-（并列评分表、优劣势、经验总结、排名）
-```
-
-## 多模型报告（策略 A：并行多模型）
-
-```
-## Skill 评估报告（多模型交叉验证）
-
-### [Skill 名称]
-
-> 主模型：Claude Opus 4.6 | 评估模型：Claude Sonnet 4.6, GLM-5, MiniMax-M2-Stable
-
-#### 独立评估结果
-
-##### Sonnet 4.6 评估
-| 维度 | 分数 | 说明 |
-|------|------|------|
-| D1. 元数据质量 | X/10 | ... |
-| D2. 执行引导清晰度 | X/10 | ... |
-| D3. 领域知识密度 | X/10 | ... |
-| D4. 工作流完整性 | X/10 | ... |
-| D5. 输入输出清晰度 | X/10 | ... |
-| D6. 资源利用 | X/10 | ... |
-| D7. 写作质量 | X/10 | ... |
-| D8. 范围与聚焦 | X/10 | ... |
-| **综合得分** | **X.X/10 (等级 X)** | |
-
-##### GLM-5 评估
-（同上格式）
-
-##### MiniMax-M2-Stable 评估
-（同上格式）
-
-#### 交叉验证要点
-
-| 维度 | 分歧 | 详情 |
-|------|------|------|
-| D3. 领域知识密度 | Sonnet(8) vs MiniMax(5) | Sonnet 认为... MiniMax 认为... |
-| ... | ... | ... |
-
-> 共 N 个维度存在显著分歧（差异 >= 2 分），M 个维度全部模型一致。
-
-#### 最终仲裁结论
-
-**最终综合得分：X.X / 10（等级 X）**
-
-| 维度 | 最终分数 | 共识度 | 仲裁说明 |
-|------|----------|--------|----------|
-| D1. 元数据质量 | X/10 | 一致 | 三模型评分一致 |
-| D3. 领域知识密度 | X/10 | 仲裁 | Sonnet 和 GLM-5 给 8 分，MiniMax 给 5 分；交叉审查中 Sonnet 引用了...作为证据，采纳多数意见 |
-| ... | ... | ... | ... |
-
-#### 问题与建议
-1. **[维度名]**（共识度：一致/多数/仲裁）：[问题] → [建议]
-2. ...
+#### Problems And Suggestions
+1. **[Dimension]**: [problem] -> [impact] -> [suggestion]
 
 ---
-（对每个 Skill 重复以上内容）
-
-### 对比分析（多个 Skill 时）
-（使用仲裁后的最终分数进行对比；格式同单模型报告的对比分析）
 ```
 
-## 单模型多视角报告（策略 C：串行多视角）
+## Native Multi-Model Report
 
-```
-## Skill 评估报告（单模型多视角交叉验证）
+```markdown
+## Skill Evaluation Report (Native Multi-Model Cross-Validation)
 
-### [Skill 名称]
+### [Skill Name]
 
-> 评估策略：串行多视角 | 视角：严格派 / 务实派 / 专家派
+> Arbiter: [current Agent or native model] | Evaluators: [native model A], [native model B], [native model C]
 
-#### 各视角独立评估
+#### Independent Evaluations
 
-##### 视角 A：严格派评审
-| 维度 | 分数 | 说明 |
-|------|------|------|
-| D1. 元数据质量 | X/10 | [从严格视角出发的评价] |
-| D2. 执行引导清晰度 | X/10 | ... |
-| D3. 领域知识密度 | X/10 | ... |
-| D4. 工作流完整性 | X/10 | ... |
-| D5. 输入输出清晰度 | X/10 | ... |
-| D6. 资源利用 | X/10 | ... |
-| D7. 写作质量 | X/10 | ... |
-| D8. 范围与聚焦 | X/10 | ... |
-| **综合得分** | **X.X/10 (等级 X)** | |
+##### [Evaluator A]
+| Dimension | Score | Evidence |
+|-----------|-------|----------|
+| D1. Metadata Quality | X/10 | ... |
+| D2. Execution Guidance Clarity | X/10 | ... |
+| D3. Domain Knowledge Density | X/10 | ... |
+| D4. Workflow Completeness | X/10 | ... |
+| D5. Input/Output Clarity | X/10 | ... |
+| D6. Resource Utilization | X/10 | ... |
+| D7. Writing Quality | X/10 | ... |
+| D8. Scope & Focus | X/10 | ... |
+| **Weighted Score** | **X.X/10 (Grade X)** | |
 
-##### 视角 B：务实派评审
-（同上格式）
+##### [Evaluator B]
+[Same format]
 
-##### 视角 C：专家派评审
-（同上格式）
+#### Peer Review Highlights
 
-#### 交叉审查要点
+| Dimension | Disagreement | Evidence Summary |
+|-----------|--------------|------------------|
+| [Dimension] | [Evaluator A X] vs [Evaluator B Y] | ... |
 
-| 维度 | 分歧 | 详情 |
-|------|------|------|
-| D2. 执行引导清晰度 | 严格派(5) vs 务实派(8) | 严格派认为缺少异常处理分支；务实派认为主流程引导已足够 |
-| ... | ... | ... |
+> Significant disagreements: N dimensions. Broadly consistent: M dimensions.
 
-> 共 N 个维度存在显著分歧（差异 >= 2 分），M 个维度各视角一致。
+#### Final Arbitration
 
-#### 最终仲裁结论
+**Final Weighted Score: X.X / 10 (Grade X)**
 
-**最终综合得分：X.X / 10（等级 X）**
+| Dimension | Final Score | Consensus | Arbitration Rationale |
+|-----------|-------------|-----------|-----------------------|
+| D1. Metadata Quality | X/10 | Consistent / Majority / Arbitrated | ... |
+| D2. Execution Guidance Clarity | X/10 | Consistent / Majority / Arbitrated | ... |
+| D3. Domain Knowledge Density | X/10 | Consistent / Majority / Arbitrated | ... |
+| D4. Workflow Completeness | X/10 | Consistent / Majority / Arbitrated | ... |
+| D5. Input/Output Clarity | X/10 | Consistent / Majority / Arbitrated | ... |
+| D6. Resource Utilization | X/10 | Consistent / Majority / Arbitrated | ... |
+| D7. Writing Quality | X/10 | Consistent / Majority / Arbitrated | ... |
+| D8. Scope & Focus | X/10 | Consistent / Majority / Arbitrated | ... |
 
-| 维度 | 最终分数 | 共识度 | 仲裁说明 |
-|------|----------|--------|----------|
-| D1. 元数据质量 | X/10 | 一致 | 三视角评分一致 |
-| D2. 执行引导清晰度 | X/10 | 仲裁 | 严格派给 5 分强调缺少异常处理，务实派给 8 分认为够用；综合考虑，该 Skill 确有覆盖不足... |
-| ... | ... | ... | ... |
-
-#### 问题与建议
-1. **[维度名]**（共识度：一致/多数/仲裁）：[问题] → [建议]
-2. ...
+#### Problems And Suggestions
+1. **[Dimension]** (Consensus: [type]): [problem] -> [impact] -> [suggestion]
 
 ---
-（对每个 Skill 重复以上内容）
-
-### 对比分析（多个 Skill 时）
-（使用仲裁后的最终分数进行对比；格式同单模型报告的对比分析）
 ```
 
-## 多 Skill 对比格式
+## Multi-Perspective Report
 
-评估 2 个及以上 Skill 时，在所有 Skill 评估完成后附加对比分析。多模型模式下使用仲裁后的最终分数。
+```markdown
+## Skill Evaluation Report (Multi-Perspective Cross-Validation)
 
-### 7a. 并列评分表
+### [Skill Name]
 
+> Strategy: Serial multi-perspective | Perspectives: Strict / Pragmatic / Expert
+
+#### Perspective Evaluations
+
+##### Strict Reviewer
+| Dimension | Score | Evidence |
+|-----------|-------|----------|
+| D1. Metadata Quality | X/10 | ... |
+| D2. Execution Guidance Clarity | X/10 | ... |
+| D3. Domain Knowledge Density | X/10 | ... |
+| D4. Workflow Completeness | X/10 | ... |
+| D5. Input/Output Clarity | X/10 | ... |
+| D6. Resource Utilization | X/10 | ... |
+| D7. Writing Quality | X/10 | ... |
+| D8. Scope & Focus | X/10 | ... |
+| **Weighted Score** | **X.X/10 (Grade X)** | |
+
+##### Pragmatic Reviewer
+[Same format]
+
+##### Expert Reviewer
+[Same format]
+
+#### Cross-Review Highlights
+
+| Dimension | Disagreement | Evidence Summary |
+|-----------|--------------|------------------|
+| [Dimension] | Strict X / Pragmatic Y / Expert Z | ... |
+
+> Significant disagreements: N dimensions. Broadly consistent: M dimensions.
+
+#### Final Arbitration
+
+**Final Weighted Score: X.X / 10 (Grade X)**
+
+| Dimension | Final Score | Consensus | Arbitration Rationale |
+|-----------|-------------|-----------|-----------------------|
+| D1. Metadata Quality | X/10 | Consistent / Majority / Arbitrated | ... |
+| D2. Execution Guidance Clarity | X/10 | Consistent / Majority / Arbitrated | ... |
+| D3. Domain Knowledge Density | X/10 | Consistent / Majority / Arbitrated | ... |
+| D4. Workflow Completeness | X/10 | Consistent / Majority / Arbitrated | ... |
+| D5. Input/Output Clarity | X/10 | Consistent / Majority / Arbitrated | ... |
+| D6. Resource Utilization | X/10 | Consistent / Majority / Arbitrated | ... |
+| D7. Writing Quality | X/10 | Consistent / Majority / Arbitrated | ... |
+| D8. Scope & Focus | X/10 | Consistent / Majority / Arbitrated | ... |
+
+#### Problems And Suggestions
+1. **[Dimension]** (Consensus: [type]): [problem] -> [impact] -> [suggestion]
+
+---
 ```
-| 维度             | Skill A | Skill B | Skill C |
-|-----------------|---------|---------|---------|
-| D1. 元数据质量      |   8     |   4     |   6     |
-| ...             |  ...    |  ...    |  ...    |
-| 综合得分         | 7.8/A   | 4.2/C   | 6.5/B   |
+
+## Multi-Skill Comparison Section
+
+Append this section after all individual reports when evaluating 2 or more Skills.
+
+```markdown
+### Comparison
+
+| Dimension | Skill A | Skill B | Skill C |
+|-----------|---------|---------|---------|
+| D1. Metadata Quality | X | X | X |
+| D2. Execution Guidance Clarity | X | X | X |
+| D3. Domain Knowledge Density | X | X | X |
+| D4. Workflow Completeness | X | X | X |
+| D5. Input/Output Clarity | X | X | X |
+| D6. Resource Utilization | X | X | X |
+| D7. Writing Quality | X | X | X |
+| D8. Scope & Focus | X | X | X |
+| Weighted Score | X.X / Grade | X.X / Grade | X.X / Grade |
+
+#### Strengths And Weaknesses
+- **Skill A**: ...
+- **Skill B**: ...
+
+#### Shared Lessons
+- ...
+
+#### Ranking
+1. **[Skill]**: [one-sentence reason]
+2. **[Skill]**: [one-sentence reason]
 ```
-
-### 7b. 各自优劣势
-
-对每个 Skill 说明：
-- 相比其他 Skill **更强**的方面
-- 相比其他 Skill **更弱**的方面
-
-### 7c. 经验总结
-
-识别共性规律：
-- 得分最高的 Skill 做对了什么，值得其他 Skill 借鉴
-- 所有被评估 Skill 的共同短板
-
-### 7d. 排名
-
-从优到劣排列所有 Skill，每个位次附一句理由。

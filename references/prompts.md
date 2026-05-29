@@ -1,171 +1,165 @@
-# Prompt 模板
+# Prompt Templates
 
-本文件包含多模型模式下各阶段使用的 prompt 模板。策略 A（subagent）和策略 B（千帆 API）共用独立评估和交叉互审模板；策略 C（串行多视角）使用视角评估和自我交叉审查模板。
+Use these templates for native multi-model and multi-perspective evaluation. Replace placeholders before use.
 
-**占位符说明**：模板中的 `{{VAR}}` 占位符在实际使用时替换为对应内容：
+## Placeholders
 
-| 占位符 | 替换内容 |
-|--------|----------|
-| `{{SKILL_CONTENT}}` | 目标 Skill 的完整内容 |
-| `{{SKILL_RESOURCES}}` | Skill 附带资源及其摘要，无则填"无附带资源" |
-| `{{DIMENSIONS_D1_D8}}` | `references/dimensions.md` 的 D1-D8 完整内容（含评分标准表） |
-| `{{DIMENSIONS_SCORING}}` | `references/dimensions.md`「评分计算」章节的加权公式和等级映射表 |
-| `{{SELF_EVALUATION}}` | 该模型在独立评估阶段的评估结果 |
-| `{{OTHER_EVALUATIONS}}` | 其他所有模型的评估结果，标明各自的模型名称 |
+| Placeholder | Replace with |
+|-------------|--------------|
+| `{{SKILL_CONTENT}}` | Full target `SKILL.md` content |
+| `{{SKILL_RESOURCES}}` | Relevant bundled resources or "No relevant bundled resources" |
+| `{{DIMENSIONS_D1_D8}}` | Full D1-D8 scoring standards from `references/dimensions.md` |
+| `{{DIMENSIONS_SCORING}}` | Weighted scoring formula and grade mapping |
+| `{{SELF_EVALUATION}}` | This evaluator's independent evaluation |
+| `{{OTHER_EVALUATIONS}}` | Other evaluators' results with evaluator names |
 
-## 独立评估 Prompt（策略 A 第四步-A / 策略 B 第四步-B）
+## Independent Evaluation Prompt
 
-```
-你是一名 Skill 质量评估专家。请独立评估以下 Skill 的质量。
+```text
+You are a Skill quality evaluator. Independently evaluate the following Agent Skill.
 
-## 目标 Skill 内容
+## Target Skill
 
 {{SKILL_CONTENT}}
 
-## 附带资源概况
+## Relevant Bundled Resources
 
 {{SKILL_RESOURCES}}
 
-## 评分标准
-
-按以下 8 个维度打分，每个维度 0-10 分：
+## Scoring Dimensions
 
 {{DIMENSIONS_D1_D8}}
 
-## 评分计算
+## Scoring Formula
 
 {{DIMENSIONS_SCORING}}
 
-## 要求
+## Requirements
 
-1. 对每个维度给出分数和一句话说明，说明中必须引用 Skill 内容中的具体章节或行作为证据
-2. 计算加权综合得分和等级
-3. 对每个低于 7 分的维度，给出问题、影响和改进建议
+1. Score every dimension from 0-10.
+2. Cite concrete evidence from the Skill or its resources for every score.
+3. Calculate the weighted total and grade.
+4. For every dimension below 7, provide the problem, impact, and actionable suggestion.
+5. Do not compare with other evaluators; this is an independent assessment.
 
-按以下格式输出：
+## Output Format
 
-### 评估结果
+### Evaluation Result
 
-| 维度 | 分数 | 说明 |
-|------|------|------|
-| D1. 元数据质量 | X/10 | [引用证据的说明] |
-| D2. 执行引导清晰度 | X/10 | [引用证据的说明] |
-| D3. 领域知识密度 | X/10 | [引用证据的说明] |
-| D4. 工作流完整性 | X/10 | [引用证据的说明] |
-| D5. 输入输出清晰度 | X/10 | [引用证据的说明] |
-| D6. 资源利用 | X/10 | [引用证据的说明] |
-| D7. 写作质量 | X/10 | [引用证据的说明] |
-| D8. 范围与聚焦 | X/10 | [引用证据的说明] |
+| Dimension | Score | Evidence |
+|-----------|-------|----------|
+| D1. Metadata Quality | X/10 | ... |
+| D2. Execution Guidance Clarity | X/10 | ... |
+| D3. Domain Knowledge Density | X/10 | ... |
+| D4. Workflow Completeness | X/10 | ... |
+| D5. Input/Output Clarity | X/10 | ... |
+| D6. Resource Utilization | X/10 | ... |
+| D7. Writing Quality | X/10 | ... |
+| D8. Scope & Focus | X/10 | ... |
 
-**综合得分：X.X / 10（等级 X）**
+**Weighted Score: X.X / 10 (Grade X)**
 
-### 问题与建议
-（对每个低于 7 分的维度列出问题、影响和建议）
+### Problems And Suggestions
+
+List each dimension below 7 with problem, impact, and suggestion.
 ```
 
-**语言适配**：若目标 Skill 为英文，prompt 中的指令和输出格式也应为英文。
+If the target Skill is primarily written in another language, translate the prompt and output labels to that language before dispatching.
 
-**结果标记**：收集每个模型的返回结果，标记其对应的模型名称（如 "Sonnet 评估"、"ernie-5.0 评估"）。
+## Peer Review Prompt
 
-## 交叉互审 Prompt（策略 A 第五步-A / 策略 B 第五步-B）
+```text
+You are a peer reviewer. You previously evaluated this Skill independently. Review the other evaluations and identify scores that are not well supported.
 
-```
-你是一名同行评审员。以下是你之前对一个 Skill 的独立评估结果，以及其他评估者的评估结果。
-请审查其他评估，找出你认为不合理的评分。
-
-## 目标 Skill 内容
+## Target Skill
 
 {{SKILL_CONTENT}}
 
-## 你的独立评估
+## Your Independent Evaluation
 
 {{SELF_EVALUATION}}
 
-## 其他评估者的结果
+## Other Evaluations
 
 {{OTHER_EVALUATIONS}}
 
-## 审查要求
+## Review Requirements
 
-对每个你与其他评估者**分差 >= 2 分**的维度：
+For every dimension where your score and another evaluator's score differ by 2 or more points:
 
-1. **维度名**：你的分数 vs 对方分数（如 "D3. 领域知识密度：你 8 分 vs Haiku 5 分"）
-2. **质疑理由**：为什么对方的评分不合理，引用 Skill 中的具体内容作为证据
-3. **自我修正**：看了对方的评估后，你是否愿意调整自己的分数？如果调整，调到多少？为什么？
+1. Name the dimension and score difference.
+2. Explain why the other score is too high, too low, or reasonable.
+3. Cite concrete evidence from the Skill.
+4. State whether you would revise your own score after reviewing the disagreement.
 
-对于分差 < 2 分的维度，仅简要说明"基本一致，无争议"即可。
+For dimensions with differences below 2 points, list them as broadly consistent.
 
-按以下格式输出：
+## Output Format
 
-### 交叉审查结果
+### Peer Review Result
 
-#### 显著分歧（分差 >= 2）
-1. **[维度名]**：[你的分数] vs [对方模型名 对方分数]
-   - 质疑：[理由和证据]
-   - 自我修正：[是否调整，调整后分数及理由]
+#### Significant Disagreements
+1. **[Dimension]**: your score X vs [Evaluator] score Y
+   - Challenge:
+   - Evidence:
+   - Self-revision:
 
-#### 基本一致的维度
-[列出无显著分歧的维度]
+#### Broadly Consistent Dimensions
+[List dimensions]
 
-#### 总体评价
-[对其他评估者的整体评价：是偏严还是偏松？有无系统性偏差？]
+#### Overall Assessment
+[Describe whether other evaluators are stricter, looser, or missing evidence.]
 ```
 
-**分歧阈值**：分差 >= 2 分为显著分歧，需要详细质疑；分差 < 2 分为基本一致。
+## Multi-Perspective Evaluation Template
 
-**结果收集**：收集所有 cross-review 结果，供仲裁阶段使用。
+Use the same target Skill and scoring dimensions for all three perspectives. Complete all three perspective evaluations before comparing them.
 
-## 视角评估模板（策略 C 第四步-C）
+| Perspective | Bias | Focus |
+|-------------|------|-------|
+| Strict reviewer | Conservative | Metadata precision, boundaries, missing cases, workflow robustness |
+| Pragmatic reviewer | Practical | Usability, clarity, speed to execute, user-facing usefulness |
+| Expert reviewer | Specialist | Domain knowledge, resource design, writing quality, scope discipline |
 
-策略 C 使用以下 3 个评审视角：
+```text
+## Perspective [Strict / Pragmatic / Expert]
 
-| 视角 | 名称 | 评审倾向 | 关注重点 |
-|------|------|---------|---------|
-| 视角 A | 严格派评审 | 偏严格，注重规范性 | 元数据是否精确、工作流是否健壮、边界条件是否处理、是否有遗漏 |
-| 视角 B | 务实派评审 | 偏务实，注重可用性 | 执行引导是否清晰、用户能否快速上手、输入输出是否明确、实际使用体验 |
-| 视角 C | 专家派评审 | 偏深度，注重专业性 | 领域知识是否深入、写作质量是否专业、资源利用是否合理、范围是否恰当 |
+Evaluation bias: [bias]
+Focus: [focus]
 
-对每个视角，按以下模板执行：
+Evaluate the target Skill from this perspective using D1-D8.
 
+Output:
+
+| Dimension | Score | Evidence |
+|-----------|-------|----------|
+| D1. Metadata Quality | X/10 | ... |
+| D2. Execution Guidance Clarity | X/10 | ... |
+| D3. Domain Knowledge Density | X/10 | ... |
+| D4. Workflow Completeness | X/10 | ... |
+| D5. Input/Output Clarity | X/10 | ... |
+| D6. Resource Utilization | X/10 | ... |
+| D7. Writing Quality | X/10 | ... |
+| D8. Scope & Focus | X/10 | ... |
+
+**Weighted Score: X.X / 10 (Grade X)**
+
+### Problems And Suggestions
+
+List each dimension below 7 with problem, impact, and suggestion from this perspective.
 ```
-## 视角 [A/B/C]：[名称]评审
 
-> 评审倾向：[倾向描述]
-> 关注重点：[重点描述]
+## Perspective Cross-Review Template
 
-请以此视角独立评估以下 Skill。
+```text
+Compare the Strict, Pragmatic, and Expert evaluations.
 
-{{按 references/dimensions.md 中的 8 个维度逐一打分}}
+For every dimension where scores differ by 2 or more points:
 
-输出格式：
+1. List all three scores.
+2. Explain why the perspectives differ.
+3. Decide which score or score range is best supported by evidence.
+4. Recommend the final score.
 
-| 维度 | 分数 | 说明 |
-|------|------|------|
-| D1. 元数据质量 | X/10 | [从该视角出发的评价，引用证据] |
-| ... | ... | ... |
-
-**综合得分：X.X / 10（等级 X）**
-
-### 问题与建议
-（从该视角出发，对低于 7 分的维度给出问题、影响和建议）
-```
-
-**关键要求**：
-- 每个视角的评分必须独立思考，体现该视角的特色。同一个维度，严格派可能给 6 分，务实派可能给 8 分，这是正常的
-- 评分说明中必须引用 Skill 中的具体内容作为证据
-- 3 个视角全部完成后，再进入交叉审查
-
-## 自我交叉审查模板（策略 C 第五步-C）
-
-3 个视角的评估全部完成后，对评分结果进行交叉对比。找出视角间**分差 >= 2 分**的维度，逐一分析分歧原因：
-
-```
-### 交叉审查
-
-对每个分差 >= 2 分的维度：
-
-1. **维度名**：列出各视角的分数（如 "D2：严格派 5 分 / 务实派 8 分 / 专家派 7 分"）
-2. **分歧原因**：各视角为什么给出不同分数？引用各自的评分说明
-3. **合理性判断**：哪个视角的评分更有说服力？为什么？
-4. **调整建议**：综合考虑后，该维度的合理分数应该是多少？
+For dimensions with differences below 2 points, mark them as consistent.
 ```

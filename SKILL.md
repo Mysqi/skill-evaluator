@@ -1,362 +1,186 @@
 ---
 name: skill-evaluator
-version: "2.2.0"
-description: 评估 Skill 质量并打分，支持多模型交叉验证和多 Skill 对比。当用户想要评审、审计、打分或对比 Skill 时触发；"多模型评估"、"交叉验证" 等关键词触发多模型模式。
+version: "3.0.0"
+description: Evaluate, review, score, audit, or compare AI Agent Skills. Use for single-Skill assessment, multi-Skill comparison, and native multi-model or multi-perspective cross-validation. Do not use for general code review, app testing, or evaluating non-Skill artifacts unless the user explicitly asks to judge them as Skills.
 ---
 
-# Skill 评估器
+# Skill Evaluator
 
-对 Skill 进行质量评估和多 Skill 横向对比。支持多模型独立评估 + 交叉验证 + 仲裁，提升评估结果的权威性。提供三种执行策略：subagent 并行多模型、千帆 API 多模型、串行多视角，确保跨平台可用。
+Evaluate the quality of AI Agent Skills. Score each target Skill across 8 weighted dimensions, identify weaknesses, provide actionable improvements, and compare multiple Skills when requested.
 
-## 使用场景
+This Skill has no external API dependency. Multi-model evaluation uses only models that the current Agent platform natively supports. When native multi-model execution is unavailable, use the serial multi-perspective fallback.
 
-- 评审单个 Skill，发现不足和改进空间
-- 对比两个或多个 Skill，判断哪个设计更优
-- 在发布或分享前审计 Skill 质量
-- 为 Skill 作者提供改进反馈
-- 使用多模型交叉验证，获得更客观权威的评估结论
+## When To Use
 
-## 配置
+Use this Skill when the user asks to:
 
-### 模型配置
+- Review, audit, score, or evaluate a Skill
+- Compare two or more Skills
+- Check a Skill before publishing or sharing
+- Run multi-model, cross-validation, or multi-perspective Skill evaluation
+- Improve a Skill's instructions, resources, or trigger behavior
 
-多模型模式涉及两类模型角色：
+Do not use this Skill for ordinary code review, product critique, prompt polishing, or benchmark design unless the target artifact is being treated as an Agent Skill.
 
-| 角色 | 说明 |
-|------|------|
-| **主模型（仲裁者）** | 负责最终仲裁综合，给出权威结论 |
-| **评估模型列表** | 参与独立评估和交叉互审的模型（≥ 2 个） |
+## Resources
 
-**默认模型**（仅在用户放弃指定时使用）：
+- Scoring dimensions and weights: `references/dimensions.md`
+- Evaluation prompts and review prompts: `references/prompts.md`
+- Report templates: `references/report-formats.md`
 
-| 角色 | 默认值 |
-|------|--------|
-| 主模型 | 当前 Agent 自身 |
-| 评估模型 | ernie-5.0、sonnet、glm-5.1、minimax-m2.5 |
+Load only the reference files needed for the current request.
 
-> 若默认评估模型中包含非 Agent 工具原生模型（如 GLM-5、MiniMax-M2-Stable），Agent 会自动通过千帆 API 调用这些模型。若千帆 Token 未配置，会询问用户提供并代为设置。用户无需关心策略细节。
+## Evaluation Modes
 
-### 千帆 API 配置
+Choose the mode from the user's request:
 
-策略 B 通过百度千帆大模型平台 API 调用模型，需要认证 Token（格式为 `bce-v3/...`）。
+| Mode | Trigger | What to do |
+|------|---------|------------|
+| Single-model | Default when the user does not ask for cross-validation | Score once using D1-D8 and produce the single-model report |
+| Native multi-model | User asks for multi-model, cross-validation, or names multiple natively supported models | Run independent evaluations, peer review, then arbitrate |
+| Multi-perspective | Native multi-model is unavailable, only one model is available, or the user asks for perspectives | Evaluate as Strict, Pragmatic, and Expert reviewers, then arbitrate |
 
-- **API Endpoint**：默认 `https://qianfan.baidubce.com/v2/chat/completions`，可通过脚本 `--endpoint` 参数覆盖
+If the user asks for non-native or external API models, explain that this Skill no longer calls external model APIs. Continue with native multi-model evaluation if at least two native models are available; otherwise use multi-perspective mode.
 
-**Token 检测与获取流程**（按优先级）：
+## Model Selection
 
-1. **Skill 配置文件**：读取 Skill 目录下的 `config.json`，检查 `qianfan_token` 字段是否存在且以 `bce-v3/` 开头。若有效则直接使用，**跳过后续所有检测和询问**
-2. **环境变量**：通过 Bash 工具执行 `echo $QIANFAN_BEARER_TOKEN` 检查。若已设置，记录 Token 值并自动写入 `config.json` 持久化（下次直接从配置读取）
-3. **询问用户**：上述均未获取到时，通过 AskUserQuestion 提示用户。定义两个显式选项：「已手动配置，再次检测」和「跳过」。自动追加的 Other 选项用于直接粘贴 Token（`bce-v3/...` 格式）。选择「再次检测」时重新执行 `echo $QIANFAN_BEARER_TOKEN`；选择「跳过」时降级到无需千帆的策略
-4. **持久化**：用户通过 Other 粘贴 Token 后，自动写入 `config.json` 持久化，后续评估不再询问
-5. **传递方式**：获取到 Token 后，每次调用 `scripts/qianfan_chat.py` 时**必须通过 `--token` 参数传入**（Bash 工具每次调用都是独立 shell，`export` 不会跨调用持久化）
+For native multi-model mode:
 
-**config.json 格式**（位于 Skill 目录下，已加入 .gitignore）：
+1. If the user names models that are valid in the current Agent platform, use those models.
+2. If the user asks for multi-model evaluation but does not name models, use the current platform's available native model set when discoverable.
+3. If fewer than 2 native evaluator models are available, use multi-perspective mode.
+4. Do not request API credentials.
+5. Do not call external model APIs.
 
-```json
-{
-  "qianfan_token": "bce-v3/..."
-}
-```
+The main Agent is the arbiter unless the platform provides a reliable way to select a stronger native arbiter model and the user explicitly asks for it.
 
-**读写 config.json 的方式**：
+## Workflow
 
-```bash
-# 读取 Token（Skill 目录路径根据实际安装位置确定）
-python3 -c "import json; c=json.load(open('<SKILL_DIR>/config.json')); print(c.get('qianfan_token',''))"
+### 1. Load Target Skills
 
-# 写入 Token
-python3 -c "import json,os; p='<SKILL_DIR>/config.json'; c=json.load(open(p)) if os.path.exists(p) else {}; c['qianfan_token']='<TOKEN>'; json.dump(c,open(p,'w'),indent=2)"
-```
+For each target Skill:
 
-> `<SKILL_DIR>` 为 SKILL.md 所在目录的实际路径。Agent 在加载 Skill 时已知该路径。
+1. Read its `SKILL.md`.
+2. List bundled resources such as `references/`, `scripts/`, and `assets/`.
+3. Read only resources that materially affect evaluation.
+4. If the user provides a Skill name, look in the local Skill directories supported by the current environment. If the user provides a path, load that path.
+5. If the target cannot be found, ask for a path or pasteable content.
 
-### 模型选择流程
+### 2. Score With D1-D8
 
-触发多模型模式后，通过**一轮交互**确认模型配置，然后立即开始评估：
+Read `references/dimensions.md`. Score each dimension from 0-10 and calculate the weighted total exactly as defined there.
 
-1. 若用户在触发时已明确指定了模型（如 "用 opus 做主模型，sonnet 和 GLM-5 做评估"），直接使用，**跳过询问**
-2. 否则，使用**一次** AskUserQuestion 同时询问两个问题（主模型和评估模型列表）。每个问题定义 2 个预设选项，自动追加的 Other 选项用于自定义输入：
-   - **主模型（仲裁者）**：选项 1「当前 Agent」、选项 2「默认配置」→ Other 自定义输入
-   - **评估模型列表**：选项 1「默认配置列表」、选项 2「Claude 系列模型」→ Other 自定义输入
-3. 模型确认后，若需要千帆 API 则按「千帆 API 配置」章节的 Token 检测流程获取 Token（配置文件 → 环境变量 → 询问用户）。配置文件或环境变量中已有有效 Token 时**无需任何交互**
+For every score, cite evidence from the target Skill, such as frontmatter, section names, workflow steps, resource organization, or missing instructions.
 
-整个流程**最多 2 轮交互**（模型确认 + Token），多数情况下用户点一次"使用默认"即可开始。
+For each dimension below 7, provide:
 
-> **注意**：询问时不要向用户展示策略选项（A/B/C）。策略由 Agent 根据确认的模型列表自动判断。
+1. Problem: what is missing or weak
+2. Impact: why it matters during real Agent use
+3. Suggestion: a concrete improvement, preferably with a short example
 
-### 模式选择
+### 3. Produce The Right Report
 
-根据用户意图自动判断评估模式：
+Read `references/report-formats.md` and use the relevant template:
 
-**多模型模式**触发条件（满足任一即可）：
-- 用户明确提到：多模型、交叉验证、cross-validate、deep evaluation、多个模型评估
-- 用户指定了模型列表
+- Single target, single-model: single-model report
+- Multiple targets: add the multi-Skill comparison section
+- Native multi-model: native multi-model report
+- Multi-perspective: multi-perspective report
 
-**单模型模式**触发条件：
-- 用户未提及上述触发词
-- 用户只指定了 1 个模型
+Use the user's requested language. If the user does not specify, match the target Skill's main language.
 
-单模型模式为默认模式，保持向后兼容。
+## Native Multi-Model Evaluation
 
-### 执行策略
+Use this only when at least 2 native evaluator models can be run by the current Agent platform.
 
-多模型模式有以下执行策略：
+### A1. Independent Evaluation
 
-| 策略 | 说明 | 依赖 |
-|------|------|------|
-| **策略 A：并行多模型** | 多个真实模型通过 subagent 并行独立评估，效果最佳 | Agent 工具 + model 参数 |
-| **策略 B：API 多模型** | 通过千帆 API 并行调用多个真实模型，不依赖 subagent | Bash 工具 + Python + 千帆 Token |
-| **策略 A+B：混合模式** | 评估模型列表中同时包含原生和非原生模型时，原生走 subagent，非原生走千帆 API，并行执行后统一汇总 | Agent 工具 + Bash 工具 + 千帆 Token |
-| **策略 C：串行多视角** | 策略 A/B 均不可用时的兜底方案。同一模型依次扮演 3 个不同评审视角，在同一上下文中串行完成 | 无外部依赖 |
+Run one independent evaluation per evaluator model. Each evaluator must:
 
-**策略选择逻辑**（按优先级）：
+- Read the same target Skill content and relevant resources
+- Use the same D1-D8 scoring standard
+- Give evidence-backed scores and suggestions
+- Avoid reading other evaluators' results
 
-1. **用户主动要求**特定策略（如 "用多视角模式评估"）→ 使用指定策略
-2. **根据模型列表前置路由**（在第三步确认模型后、实际调用前判断）：
-   - 评估模型列表中**全部**是 Agent 工具原生模型（如 opus、sonnet、haiku）→ 策略 A
-   - 评估模型列表中**全部**是非 Agent 工具原生模型（如 ernie-5.0、deepseek-v3.2 等）→ 检查千帆 Token → 可用则策略 B → 不可用则按「千帆 API 配置」章节流程获取 Token，放弃后降级到策略 C
-   - 评估模型列表中**混合**了两类模型（部分原生、部分非原生）→ 检查千帆 Token → 可用则**策略 A+B** → 不可用则按「千帆 API 配置」章节流程获取 Token，放弃后仅对原生模型走策略 A（非原生模型跳过，报告中注明）
-   - 使用**默认模型列表**且未指定具体模型 → 先尝试策略 A；若 Agent 工具调用明确失败 → 检查千帆 Token → 可用则策略 B → 不可用则按「千帆 API 配置」章节流程获取 Token，放弃后降级到策略 C
-3. **运行时降级**：策略 A 执行过程中 Agent 工具调用明确失败 → 按上述逻辑降级到策略 B 或 C
+Use the Independent Evaluation prompt in `references/prompts.md`.
 
-策略路由和降级对用户透明，无需用户感知或干预。
+### A2. Peer Review
 
-> **判断 Agent 工具原生模型的方法**：Agent 工具的 model 参数通常仅支持平台内置的模型标识符（如 Claude Code 下为 opus、sonnet、haiku）。GLM-5、MiniMax-M2-Stable、ernie-5.0、deepseek-v3.2、qwen3.5、glm-5.1 等第三方模型不是 Agent 工具的有效 model 值，必须通过千帆 API（策略 B）调用。
+After all independent evaluations finish, ask each evaluator to review the other evaluations.
 
-> **成本提示**：策略 A 每个 Skill 约需 7 次 subagent 调用（3 独立评估 + 3 交叉互审 + 1 仲裁），Token 消耗约为单模型模式的 7 倍。策略 B 通过千帆 API 调用外部模型，Token 消耗在千帆平台计费。策略 C 无外部调用，但上下文较长，Token 消耗约为单模型模式的 4-5 倍。
+Each peer reviewer must:
 
-## 评估标准
+- Focus on dimensions where scores differ by 2 or more points
+- Challenge unsupported scores with evidence
+- State whether it would revise its own score
 
-评分维度（D1-D8）和加权计算规则见 `references/dimensions.md`。该文件是所有评估模式共用的唯一评分标准。
+Use the Peer Review prompt in `references/prompts.md`.
 
-## 评估流程
+### A3. Arbitration
 
-### 第一步：加载目标 Skill
+The main Agent synthesizes all evaluations and peer reviews.
 
-对每个待评估的 Skill：
+For each dimension:
 
-1. 读取其 `SKILL.md` 文件
-2. 列出所有附带资源（`scripts/`、`references/`、`assets/`）
-3. 存在关键资源文件时，读取其内容以评估质量和相关性
+1. Consistent: if all scores differ by at most 1 point, use the average rounded to 1 decimal.
+2. Majority: if most evaluators cluster and one differs by 2 or more points, use the majority cluster average.
+3. Arbitrated: if there is no clear majority, choose the best-supported score based on concrete evidence.
 
-若用户提供的 Skill 名称存在于 `~/.claude/skills/<name>/` 下，从该路径加载。若用户提供了文件路径，从指定路径加载。
+Then calculate the final weighted score and produce the native multi-model report.
 
-### 第二步：确定评估模式
+## Multi-Perspective Evaluation
 
-根据用户的请求内容判断评估模式：
+Use this when native multi-model execution is unavailable, insufficient, or not requested but the user wants deeper review.
 
-1. **解析用户意图**：检查是否提及多模型/交叉验证触发词（见「配置 > 模式选择」章节）
-2. **路由**：
-   - 触发多模型模式 → 进入第三步（询问模型配置）
-   - 其他情况 → 进入**单模型流程**
+Evaluate the same Skill three times in the same context:
 
-### 第三步：确认模型配置
+| Perspective | Bias | Focus |
+|-------------|------|-------|
+| Strict reviewer | Conservative | Metadata precision, boundaries, missing cases, workflow robustness |
+| Pragmatic reviewer | Practical | Usability, clarity, speed to execute, user-facing usefulness |
+| Expert reviewer | Specialist | Domain knowledge, resource design, writing quality, scope discipline |
 
-触发多模型模式后，**只询问用户模型选择**（见「配置 > 模型选择流程」章节），不展示策略选项：
+Each perspective must score independently before arbitration. The scores should not be forced to differ, but they should reflect the perspective's priorities.
 
-1. 若用户已在请求中明确指定了主模型和评估模型列表，直接使用，跳过询问
-2. 若用户未指定，**主动询问**是否自定义主模型和评估模型列表
-3. 用户回复后（或选择使用默认），确认最终模型配置
-4. Agent 内部根据确认的模型列表自动判断执行策略（见「配置 > 执行策略 > 策略选择逻辑」），进入对应的多模型流程。**策略判断过程不向用户展示**
+After the three evaluations:
 
----
+1. Compare dimensions with score differences of 2 or more.
+2. Explain why the perspectives disagree.
+3. Arbitrate with the same Consistent / Majority / Arbitrated rules used in native multi-model mode.
+4. Produce the multi-perspective report.
 
-### 单模型模式
+## Multi-Skill Comparison
 
-当未触发多模型模式时，按以下流程执行（向后兼容的默认行为）：
+When evaluating multiple Skills:
 
-**打分**：按 `references/dimensions.md` 的 8 个维度逐一打分，每个维度给出分数和说明。
+1. Score every Skill independently first.
+2. Use final arbitrated scores if cross-validation was used.
+3. Add a comparison table, strengths and weaknesses, shared lessons, and ranking.
+4. Prefer practical conclusions over tiny numeric differences; scores within 0.3 points should be treated as roughly tied unless the evidence clearly separates them.
 
-**综合得分**：按 `references/dimensions.md`「评分计算」章节的加权公式计算总分和等级。
+## Removal Impact
 
-**问题与建议**：对每个低于 7 分的维度，提供：
-1. **问题**：具体缺少什么
-2. **影响**：为什么这很重要（如 "Agent 在相关场景下无法触发该 Skill"）
-3. **建议**：具体可操作的改进方案，附示例
+Version 3.0.0 removed external model API execution.
 
-完成后跳转到「多 Skill 对比」（如有多个 Skill）或按 `references/report-formats.md`「单模型报告」格式输出报告。
+Positive effects:
 
----
+- No credential setup is required.
+- No credential persistence is needed.
+- The Skill is shorter, easier to audit, and safer to install.
+- Behavior depends on the current Agent platform rather than a separate vendor service.
 
-### 多模型模式
+Tradeoffs:
 
-当触发多模型模式时，根据策略选择逻辑（见「配置 > 执行策略」）确定执行策略。
+- The Skill no longer calls external models through an API.
+- In environments without native multi-model support, cross-validation becomes single-model multi-perspective review.
+- Results may be less diverse than true cross-vendor evaluation, but execution is simpler and more reliable.
 
-#### 策略 A：并行多模型
+## Review Before Final Answer
 
-以下为默认执行流程。若 Agent 工具调用明确失败或收到不支持的明确信息，按降级链路切换到策略 B 或 C。
+Before reporting completion of an evaluation:
 
-##### 第四步-A：并行独立评估
-
-对模型列表中的每个模型，使用 **Agent 工具**并行 spawn 一个 subagent：
-
-- **Agent 参数**：`model` 设为对应模型（如 `"opus"`、`"sonnet"`、`"haiku"`）
-- **并行执行**：所有 subagent 在同一轮中同时派发，不需要等待前一个完成
-- **Subagent prompt**：读取 `references/prompts.md`「独立评估 Prompt」模板，填充目标 Skill 内容、附带资源概况、`references/dimensions.md` 中的评分标准和计算公式后传入
-
-##### 第五步-A：两两交叉互审
-
-所有独立评估完成后，让每个模型审查其他模型的评估结果。
-
-对模型列表中的每个模型，使用 **Agent 工具**并行 spawn 一个 cross-review subagent：
-
-- **Agent 参数**：`model` 设为该模型自身（确保审查者和原评估者是同一个模型）
-- **并行执行**：所有 cross-review subagent 在同一轮中同时派发
-- **Subagent prompt**：读取 `references/prompts.md`「交叉互审 Prompt」模板，填充目标 Skill 内容、该模型的独立评估结果、其他模型的评估结果后传入
-
-##### 第六步-A：仲裁综合
-
-由主 Agent 自身执行仲裁（主 Agent 通常运行仲裁者模型）。汇总所有材料，给出最终权威结论。
-
-**仲裁输入**：
-- 所有模型的独立评估结果（第四步-A）
-- 所有交叉互审结果（第五步-A）
-- 原始 Skill 内容
-
-**仲裁规则**：
-
-对每个维度，按以下规则确定最终分数：
-
-1. **一致**（所有模型分差 ≤ 1）：取所有模型评分的平均值（四舍五入到一位小数），共识度标记为"一致"
-2. **多数**（多数模型接近，个别偏离 ≥ 2 分）：采纳多数意见的平均值，共识度标记为"多数"，在仲裁说明中解释为什么偏离者的评分不被采纳
-3. **仲裁**（无明确多数，分歧严重）：审查交叉互审中各方的论据和证据，采纳论据最充分、证据引用最具体的评分，共识度标记为"仲裁"，在仲裁说明中详细解释裁定理由
-
-**仲裁输出**：
-
-按 `references/dimensions.md`「评分计算」章节的公式计算最终综合得分和等级。
-
-对每个低于 7 分的维度，融合所有模型的洞察，给出问题、影响和改进建议。改进建议应综合各模型的独到见解，确保建议全面、可操作。
-
-按 `references/report-formats.md`「多模型报告」格式输出。
-
-#### 策略 B：API 多模型
-
-通过千帆大模型平台 API 调用多个真实模型，不依赖 subagent 机制。适用于不支持 subagent 的平台，或用户指定了千帆模型时。
-
-**前置检查**：按「千帆 API 配置」章节的 Token 检测与获取流程获取 Token。
-
-##### 第四步-B：并行 API 独立评估
-
-1. 构造评估 prompt：读取 `references/prompts.md`「独立评估 Prompt」模板（与策略 A 使用相同模板），填充目标 Skill 内容、附带资源概况和评分标准后写入临时文件
-2. 通过 Bash 工具一次调用批量并行所有模型：
-
-```bash
-python3 scripts/qianfan_chat.py \
-  --models ernie-5.0,deepseek-v3.2,qwen3.5,glm-5.1 \
-  --prompt-file /tmp/eval_prompt.txt \
-  --token "<Token值>"
-```
-
-3. 解析返回的 JSON 结果，获取每个模型的评估结果
-4. 对 `"status": "error"` 的模型重试一次（可通过 `--retry 1` 参数让脚本自动重试）
-
-##### 第五步-B：API 交叉互审
-
-所有独立评估完成后，对每个模型构造各自的交叉互审 prompt（每个模型看到的"自己的评估"和"其他人的评估"不同），分别写入临时文件后通过**并行 Bash 调用**同时发起：
-
-```bash
-# 以下多个调用应在同一轮中并行发起（多个 Bash 工具调用可同时执行）
-python3 scripts/qianfan_chat.py --model ernie-5.0 --prompt-file /tmp/review_ernie.txt --token "<Token值>"
-python3 scripts/qianfan_chat.py --model deepseek-v3.2 --prompt-file /tmp/review_deepseek.txt --token "<Token值>"
-python3 scripts/qianfan_chat.py --model qwen3.5 --prompt-file /tmp/review_qwen.txt --token "<Token值>"
-python3 scripts/qianfan_chat.py --model glm-5.1 --prompt-file /tmp/review_glm.txt --token "<Token值>"
-```
-
-也可使用脚本的 `--prompt-files` 参数一次调用并行完成所有互审（每个模型使用不同的 prompt 文件）：
-
-```bash
-python3 scripts/qianfan_chat.py \
-  --prompt-files ernie-5.0:/tmp/review_ernie.txt,deepseek-v3.2:/tmp/review_deepseek.txt,qwen3.5:/tmp/review_qwen.txt,glm-5.1:/tmp/review_glm.txt \
-  --token "<Token值>"
-```
-
-- **Prompt 构造**：读取 `references/prompts.md`「交叉互审 Prompt」模板（与策略 A 使用相同模板）
-- **确保审查者与原评估者是同一模型**
-
-##### 第六步-B：仲裁综合
-
-由主 Agent 自身执行仲裁。**仲裁规则与策略 A 第六步-A 完全一致**（一致/多数/仲裁三级规则）。
-
-按 `references/report-formats.md`「多模型报告」格式输出。
-
-#### 策略 A+B：混合模式
-
-当评估模型列表中同时包含 Agent 工具原生模型和非原生模型时，将两种调用通道并行使用，统一汇总结果。
-
-##### 第四步-AB：混合并行独立评估
-
-将模型列表拆分为两组，**同时**发起调用：
-
-1. **原生模型组**（如 sonnet、haiku）：按策略 A 方式，使用 Agent 工具并行 spawn subagent
-2. **非原生模型组**（如 ernie-5.0、GLM-5）：按策略 B 方式，构造评估 prompt 写入临时文件，通过 Bash 工具调用 `scripts/qianfan_chat.py --models ... --token "<Token值>"`
-
-两组调用应在同一轮中并行发起（Agent 工具和 Bash 工具可同时调用），等待所有结果返回后统一收集。
-
-##### 第五步-AB：混合交叉互审
-
-所有独立评估完成后，让每个模型审查其他所有模型的评估结果（不区分调用通道）：
-
-1. **原生模型**的交叉互审：使用 Agent 工具 spawn subagent，prompt 中包含所有模型（含非原生模型）的评估结果
-2. **非原生模型**的交叉互审：构造各自的互审 prompt 写入临时文件，通过千帆 API 并行调用（使用 `--prompt-files` 参数或多个并行 Bash 调用）
-
-确保每个模型的审查者与原评估者是同一模型、同一调用通道。
-
-##### 第六步-AB：仲裁综合
-
-由主 Agent 自身执行仲裁。**仲裁规则与策略 A 第六步-A 完全一致**（一致/多数/仲裁三级规则）。所有模型的评估结果不区分来源通道，统一参与仲裁。
-
-按 `references/report-formats.md`「多模型报告」格式输出。
-
-#### 策略 C：串行多视角
-
-以下流程在策略 A 和策略 B 均不可用时自动启用，或由用户主动要求使用。在同一上下文中，由同一个模型依次扮演 3 个不同的评审视角完成评估，然后进行自我交叉审查和仲裁。
-
-##### 第四步-C：串行多视角独立评估
-
-依次以 3 个视角进行独立评估。读取 `references/prompts.md`「视角评估模板」章节获取 3 个视角定义和评估模板。
-
-**每个视角评估时，必须严格遵循该视角的评审倾向和关注重点**，不要受前一个视角的影响。评分标准参照 `references/dimensions.md`。
-
-##### 第五步-C：自我交叉审查
-
-3 个视角的评估全部完成后，按 `references/prompts.md`「自我交叉审查模板」对评分结果进行交叉对比，找出视角间**分差 ≥ 2 分**的维度，逐一分析分歧原因。
-
-##### 第六步-C：综合仲裁
-
-基于独立评估和交叉审查，给出最终仲裁结论。
-
-**仲裁规则**（与策略 A 一致）：
-
-1. **一致**（所有视角分差 ≤ 1）：取平均值，共识度标记为"一致"
-2. **多数**（2 个视角接近，1 个偏离 ≥ 2 分）：采纳多数意见的平均值，共识度标记为"多数"
-3. **仲裁**（三方分歧严重）：审查交叉审查中的论据，采纳最有说服力的评分，共识度标记为"仲裁"
-
-按 `references/dimensions.md`「评分计算」章节的公式计算最终综合得分和等级。
-
-对每个低于 7 分的维度，融合各视角的洞察，给出问题、影响和改进建议。
-
-按 `references/report-formats.md`「单模型多视角报告」格式输出。
-
----
-
-### 第七步：多 Skill 对比（提供多个 Skill 时）
-
-评估 2 个及以上 Skill 时，在所有 Skill 评估完成后输出对比分析。多模型模式下使用仲裁后的最终分数进行对比。
-
-对比格式见 `references/report-formats.md`「多 Skill 对比格式」章节，包含：并列评分表、各自优劣势、经验总结、排名。
-
-## 注意事项
-
-- 保持客观，以证据为基础；打分时引用 Skill 中的具体行或章节
-- 简单但执行到位的 Skill 同样可以得高分 — 复杂性不是优点
-- 并非所有 Skill 都需要附带资源；D6 的打分应基于资源是否真正有帮助
-- 当用户未指定评估哪些 Skill 时，主动询问 Skill 名称或路径
-- 语言适配：评估报告的语言应与目标 Skill 的主要语言一致；若目标 Skill 为英文，则报告、维度名称和建议均使用英文输出；若用户明确指定了输出语言，以用户指定为准。多模型模式下，所有 subagent 和 API 调用的 prompt 也应与目标 Skill 语言一致
-- 策略 A（并行多模型）下，若某个 subagent 调用失败，重试一次；仍失败则用剩余模型继续评估，在报告中注明哪个模型缺失及原因
-- 策略 A 下，若只有 2 个模型，则只有 1 对交叉互审；仲裁者为两者中能力更强的模型（opus > sonnet > haiku），如无法判断则使用列表中第一个模型
-- 策略 B（API 多模型）下，独立评估阶段使用批量并行模式（`--models`），所有模型同时调用；交叉互审阶段每个模型 prompt 不同，可通过 `--prompt-files` 参数一次并行调用，或使用多个并行 Bash 调用；超时默认 120 秒
-- 策略 B 下，若某个模型 API 调用失败，重试一次；仍失败则跳过该模型，在报告中注明
-- 策略 B 下，千帆 Token 按优先级检测：Skill 配置文件 `config.json` → 环境变量 `QIANFAN_BEARER_TOKEN` → 询问用户。配置文件或环境变量中有有效 Token 时无需用户交互；用户提供后自动写入 `config.json` 持久化。获取后通过 `--token` 参数传入脚本（不要用 `export`，Bash 工具跨调用不持久化）
-- 策略 C（串行多视角）下，3 个视角的评分必须体现出明确差异；若所有视角评分完全一致，说明视角分化不足，应重新审视各视角的评分是否真正独立思考
-- 策略自动切换：确认模型列表后，根据模型分类前置判断策略（见「配置 > 执行策略 > 策略选择逻辑」）；纯原生模型走 A，纯非原生模型走 B，混合模型走 A+B；降级链路为 A → B → C
-- 策略 A+B（混合模式）下，两组调用应尽量并行发起；非原生模型的交叉互审可使用 `--prompt-files` 参数并行调用；某一通道的部分模型失败不影响另一通道，按各自策略的失败处理规则执行
+1. Check that every D1-D8 score has evidence.
+2. Recalculate the weighted total.
+3. Confirm the report format matches the chosen mode.
+4. If multiple Skills were evaluated, confirm the comparison uses the final scores.
+5. State any unavailable capability plainly, such as native multi-model execution not being available.
