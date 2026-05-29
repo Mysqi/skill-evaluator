@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) | [中文](README.md)
 
+Repository: `git@github.com:Mysqi/skill-evaluator.git`
+
 An AI Agent Skill for evaluating the quality of other Agent Skills. It scores Skills across 8 weighted dimensions, identifies weaknesses, provides actionable suggestions, and supports side-by-side comparison of multiple Skills.
 
 Version 3.0.0 removes external model API execution. Multi-model evaluation uses only models natively supported by the current Agent platform. If native multi-model execution is unavailable, the Skill falls back to Strict, Pragmatic, and Expert perspectives.
@@ -42,7 +44,7 @@ Version 3.0.0 removes external model API execution. Multi-model evaluation uses 
 ## Installation
 
 ```bash
-git clone https://github.com/sunxingboo/skill-evaluator.git ~/.claude/skills/skill-evaluator
+git clone git@github.com:Mysqi/skill-evaluator.git ~/.claude/skills/skill-evaluator
 ```
 
 You can also copy `SKILL.md` and the `references/` directory into your Agent Skill directory.

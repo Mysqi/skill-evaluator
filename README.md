@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) | [English](README_EN.md)
 
+项目地址：`git@github.com:Mysqi/skill-evaluator.git`
+
 一个用于评估 AI Agent Skill 质量的 Skill。它会从 8 个维度给 Skill 加权打分，找出不足，给出改进建议，并支持多个 Skill 横向对比。
 
 版本 3.0.0 移除了外部模型 API 路线。多模型评估只使用当前 Agent 平台原生支持的模型；如果环境不支持原生多模型，则自动使用严格派、务实派、专家派三视角评估。
@@ -42,7 +44,7 @@
 ## 安装
 
 ```bash
-git clone https://github.com/sunxingboo/skill-evaluator.git ~/.claude/skills/skill-evaluator
+git clone git@github.com:Mysqi/skill-evaluator.git ~/.claude/skills/skill-evaluator
 ```
 
 也可以将 `SKILL.md` 和 `references/` 目录复制到你的 Agent Skill 目录。
